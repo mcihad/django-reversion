@@ -48,6 +48,22 @@ class VersionAdmin(admin.ModelAdmin):
         """Registers the model with reversion."""
         register(model, **kwargs)
 
+    def get_reversion_object_id(self, request, object_id):
+        """Returns the object_id used in version storage for the given admin URL object_id.
+
+        Override this when using object_id_field in register() to translate
+        the admin URL pk to the custom field value used for version storage.
+        """
+        return unquote(object_id)
+
+    def get_reversion_changeform_object_id(self, version):
+        """Returns the pk-based object_id to pass to changeform_view for a given version.
+
+        Override this when using object_id_field in register() to translate
+        the stored object_id back to the pk that Django admin expects.
+        """
+        return quote(version.object_id)
+
     def get_version_ordering(self, request):
         """Hook for specifying custom field ordering for the version queryset."""
         # Default ordering logic uses version ID only
@@ -200,7 +216,7 @@ class VersionAdmin(admin.ModelAdmin):
                 version.revision.revert(delete=True)
                 # Run the normal changeform view.
                 with self.create_revision(request):
-                    response = self.changeform_view(request, quote(version.object_id), request.path, extra_context)
+                    response = self.changeform_view(request, self.get_reversion_changeform_object_id(version), request.path, extra_context)
                     # Decide on whether the keep the changes.
                     if request.method == "POST" and response.status_code == 302:
                         set_comment(_("Reverted to previous version, saved on %(datetime)s") % {
@@ -317,7 +333,7 @@ class VersionAdmin(admin.ModelAdmin):
             for version
             in self._reversion_order_version_queryset(request, Version.objects.get_for_object_reference(
                 self.model,
-                unquote(object_id),  # Underscores in primary key get quoted to "_5F"
+                self.get_reversion_object_id(request, object_id),
             ).select_related("revision", "revision__user"))
         ]
         # Compile the context.
