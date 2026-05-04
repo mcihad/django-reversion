@@ -170,7 +170,6 @@ def _add_to_revision(obj, using, model_db, explicit):
     version_options = _get_options(obj.__class__)
     content_type = _get_content_type(obj.__class__, using)
     object_id = force_str(getattr(obj, version_options.object_id_field))
-    
     version_key = (content_type, object_id)
     # If the obj is already in the revision, stop now.
     db_versions = _current_frame().db_versions
